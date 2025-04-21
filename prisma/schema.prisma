@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  transactions  Transaction[]
+  wallets       Wallet[]
+  exchanges     Exchange[]
+}
+
+// Wallet model to track different wallets
+model Wallet {
+  id            String         @id @default(cuid())
+  name          String
+  address       String
+  provider      String
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  transactions  Transaction[]
+
+  @@unique([address, provider])
+  @@index([userId])
+}
+
+// Exchange model to track different exchanges
+model Exchange {
+  id            String         @id @default(cuid())
+  name          String
+  apiKey        String?
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  transactions  Transaction[]
+
+  @@index([userId])
+}
+
+// Transaction model for storing all cryptocurrency transactions
+model Transaction {
+  id              String    @id @default(cuid())
+  type            String    // Buy, Sell, Transfer, Swap, Stake, etc.
+  asset           String    // The cryptocurrency asset (BTC, ETH, etc.)
+  amount          Decimal   // The amount of cryptocurrency
+  price           Decimal?  // Price per unit in USD
+  value           Decimal   // Total value in USD
+  date            DateTime  // When the transaction occurred
+  status          String    @default("Completed") // Completed, Pending, Failed
+  identified      Boolean   @default(false) // Whether the transaction has been identified for tax purposes
+  valueIdentified Boolean   @default(false) // Whether the value has been properly identified
+  notes           String?   // Optional notes
+  hash            String?   // Transaction hash if available
+  exchangeId      String?   // If transaction happened on an exchange
+  walletId        String?   // If transaction happened in a wallet
+  userId          String    // User who owns this transaction
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  sourceId        String?   // For transfers: source wallet or exchange
+  destinationId   String?   // For transfers: destination wallet or exchange
+  feeAmount       Decimal?  // Fee amount if any
+  feeAsset        String?   // Fee asset if different from transaction asset
+  isShortTerm     Boolean?  // Whether this is a short-term transaction (for capital gains)
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchange        Exchange? @relation(fields: [exchangeId], references: [id])
+  wallet          Wallet?   @relation(fields: [walletId], references: [id])
+
+  @@index([userId])
+  @@index([asset])
+  @@index([date])
+  @@index([type])
+  @@index([exchangeId])
+  @@index([walletId])
+} 
