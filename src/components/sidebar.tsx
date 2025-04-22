@@ -197,7 +197,6 @@ export function Sidebar() {
           </div>
         ) : (
           <div className="flex flex-col gap-2 rounded-lg bg-slate-100 dark:bg-primary/10 p-3 items-center">
-            <div className="text-xs font-medium text-center">Pro</div>
             <button className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
               Upgrade
             </button>
