@@ -125,25 +125,30 @@ export function Sidebar() {
         {!collapsed && (
           <button
             onClick={() => handleNavigation("/")}
-            className="flex items-center font-semibold text-lg text-primary"
+            className="flex items-center font-semibold text-xl text-primary pl-3"
           >
             <span>Crypto Tax</span>
           </button>
         )}
         {collapsed && (
-          <div className="flex-1"></div>
+          <div className="flex-1 flex justify-center">
+            <button 
+              onClick={toggleSidebar}
+              className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
         )}
         
-        <button 
-          onClick={toggleSidebar}
-          className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-5 w-5" />
-          ) : (
+        {!collapsed && (
+          <button 
+            onClick={toggleSidebar}
+            className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          >
             <ChevronLeft className="h-5 w-5" />
-          )}
-        </button>
+          </button>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-4 px-4 py-6">
