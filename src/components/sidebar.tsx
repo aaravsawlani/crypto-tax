@@ -125,21 +125,13 @@ export function Sidebar() {
         {!collapsed && (
           <button
             onClick={() => handleNavigation("/")}
-            className="flex items-center gap-2 font-semibold text-lg text-primary"
+            className="flex items-center font-semibold text-lg text-primary"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary">
-              <span className="text-white">A</span>
-            </div>
             <span>Crypto Tax</span>
           </button>
         )}
         {collapsed && (
-          <button
-            onClick={() => handleNavigation("/")}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-primary mx-auto"
-          >
-            <span className="text-white">A</span>
-          </button>
+          <div className="flex-1"></div>
         )}
         
         <button 
