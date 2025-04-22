@@ -12,27 +12,25 @@ datasource db {
 
 // User model for authentication
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  name          String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  transactions  Transaction[]
-  wallets       Wallet[]
-  exchanges     Exchange[]
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  wallets   Wallet[]
+  exchanges Exchange[]
 }
 
 // Wallet model to track different wallets
 model Wallet {
-  id            String         @id @default(cuid())
-  name          String
-  address       String
-  provider      String
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  transactions  Transaction[]
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  provider     String
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([address, provider])
   @@index([userId])
@@ -40,52 +38,63 @@ model Wallet {
 
 // Exchange model to track different exchanges
 model Exchange {
-  id            String         @id @default(cuid())
-  name          String
-  apiKey        String?
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  transactions  Transaction[]
+  id        String   @id @default(cuid())
+  name      String
+  apiKey    String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
 
-// Transaction model for storing all cryptocurrency transactions
+// Updated Transaction model based on user's SQL schema
 model Transaction {
-  id              String    @id @default(cuid())
-  type            String    // Buy, Sell, Transfer, Swap, Stake, etc.
-  asset           String    // The cryptocurrency asset (BTC, ETH, etc.)
-  amount          Decimal   // The amount of cryptocurrency
-  price           Decimal?  // Price per unit in USD
-  value           Decimal   // Total value in USD
-  date            DateTime  // When the transaction occurred
-  status          String    @default("Completed") // Completed, Pending, Failed
-  identified      Boolean   @default(false) // Whether the transaction has been identified for tax purposes
-  valueIdentified Boolean   @default(false) // Whether the value has been properly identified
-  notes           String?   // Optional notes
-  hash            String?   // Transaction hash if available
-  exchangeId      String?   // If transaction happened on an exchange
-  walletId        String?   // If transaction happened in a wallet
-  userId          String    // User who owns this transaction
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  sourceId        String?   // For transfers: source wallet or exchange
-  destinationId   String?   // For transfers: destination wallet or exchange
-  feeAmount       Decimal?  // Fee amount if any
-  feeAsset        String?   // Fee asset if different from transaction asset
-  isShortTerm     Boolean?  // Whether this is a short-term transaction (for capital gains)
+  // Core fields
+  id                 Int       @id @default(autoincrement())
+  type               String    @db.VarChar(50)
+  subtype            String?   @db.VarChar(50)
+  status             String    @default("pending") @db.VarChar(30)
+  source             String?   @db.VarChar(100)
+  source_type        String?   @db.VarChar(30)
 
-  // Relations
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exchange        Exchange? @relation(fields: [exchangeId], references: [id])
-  wallet          Wallet?   @relation(fields: [walletId], references: [id])
+  // Asset details
+  asset_symbol       String    @db.VarChar(50)
+  asset_address      String?   @db.VarChar(255)
+  asset_chain        String?   @db.VarChar(30)
 
-  @@index([userId])
-  @@index([asset])
-  @@index([date])
+  // Financial details
+  amount_value       Decimal   @db.Decimal(30, 15)
+  price_per_unit     Decimal?  @db.Decimal(30, 15)
+  value_usd          Decimal   @db.Decimal(30, 15)
+
+  // Wallet/Counterparty details
+  wallet_address       String?   @db.VarChar(100)
+  counterparty_address String?   @db.VarChar(100)
+
+  // On-chain details
+  tx_hash            String?   @unique @db.VarChar(255)
+  chain              String?   @db.VarChar(30)
+  block_number       BigInt?
+  explorer_url       String?   @db.Text
+
+  // Timestamps
+  tx_timestamp       DateTime  @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Review/Notes
+  identified         Boolean   @default(false)
+  notes              String?   @db.Text
+
+  // Indexes
+  @@index([wallet_address])
+  @@index([tx_timestamp])
   @@index([type])
-  @@index([exchangeId])
-  @@index([walletId])
+  @@index([identified])
+  @@index([chain])
+
+  // Map model name to table name
+  @@map("transactions")
 } 
