@@ -20,95 +20,79 @@ interface TokenResponse {
 
 export async function POST(request: Request) {
   try {
-    const { code, redirect_uri } = await request.json();
+    const body = await request.json();
+    const { code, redirect_uri } = body;
 
-    console.log("[Coinbase OAuth] Token exchange request received:", {
+    console.log("[Coinbase Token] Received token exchange request:", {
       hasCode: !!code,
-      hasRedirectUri: !!redirect_uri,
-      redirect_uri
+      redirectUri: redirect_uri,
+      timestamp: new Date().toISOString()
     });
 
     if (!code) {
-      console.error("[Coinbase OAuth] No code provided");
+      console.error("[Coinbase Token] No code provided in request");
       return NextResponse.json(
         { error: "No authorization code provided" },
         { status: 400 }
       );
     }
 
-    if (!redirect_uri) {
-      console.error("[Coinbase OAuth] No redirect URI provided");
+    const clientId = process.env.COINBASE_CLIENT_ID;
+    const clientSecret = process.env.COINBASE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      console.error("[Coinbase Token] Missing credentials:", {
+        hasClientId: !!clientId,
+        hasClientSecret: !!clientSecret
+      });
       return NextResponse.json(
-        { error: "No redirect URI provided" },
-        { status: 400 }
+        { error: "Server configuration error" },
+        { status: 500 }
       );
     }
 
-    const tokenEndpoint = "https://api.coinbase.com/oauth/token";
-    const params = new URLSearchParams();
-    params.append("grant_type", "authorization_code");
-    params.append("code", code);
-    params.append("redirect_uri", redirect_uri);
-    params.append("client_id", process.env.COINBASE_CLIENT_ID!);
-    params.append("client_secret", process.env.COINBASE_CLIENT_SECRET!);
+    console.log("[Coinbase Token] Exchanging code for tokens...");
 
-    console.log("[Coinbase OAuth] Making token request to Coinbase:", {
-      endpoint: tokenEndpoint,
-      params: {
-        grant_type: "authorization_code",
-        code: "present",
-        client_id: "present",
-        client_secret: "present",
-        redirect_uri
-      }
-    });
-
-    const response = await fetch(tokenEndpoint, {
+    const response = await fetch("https://api.coinbase.com/oauth/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: params.toString(),
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
     });
 
     const data = await response.json();
 
-    console.log("[Coinbase OAuth] Token response status:", response.status);
-    console.log("[Coinbase OAuth] Token response data:", {
-      success: response.ok,
-      error: data.error,
-      error_description: data.error_description,
-      hasAccessToken: !!data.access_token,
-      hasRefreshToken: !!data.refresh_token,
-      expiresIn: data.expires_in
-    });
-
     if (!response.ok) {
-      console.error("[Coinbase OAuth] Token exchange failed:", {
+      console.error("[Coinbase Token] Token exchange failed:", {
+        status: response.status,
         error: data.error,
-        error_description: data.error_description
+        errorDescription: data.error_description
       });
       return NextResponse.json(
         { 
           error: data.error,
-          error_description: data.error_description
+          error_description: data.error_description 
         },
         { status: response.status }
       );
     }
 
-    // Return the token response in the same format as the Go example
-    const tokenResponse: TokenResponse = {
-      access_token: data.access_token,
-      token_type: data.token_type,
-      expires_in: data.expires_in,
-      refresh_token: data.refresh_token,
-      scope: data.scope
-    };
+    console.log("[Coinbase Token] Successfully exchanged code for tokens:", {
+      hasAccessToken: !!data.access_token,
+      hasRefreshToken: !!data.refresh_token,
+      expiresIn: data.expires_in
+    });
 
-    return NextResponse.json(tokenResponse);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[Coinbase OAuth] Error in token exchange:", error);
+    console.error("[Coinbase Token] Unexpected error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

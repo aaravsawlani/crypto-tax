@@ -19,21 +19,48 @@ export default function CoinbaseOAuthCallback() {
         const state = params.get("state");
         const error = params.get("error");
 
+        console.log("[Coinbase Callback] Received callback:", {
+          hasCode: !!code,
+          hasState: !!state,
+          hasError: !!error,
+          fullUrl: window.location.href
+        });
+
         // Check for OAuth errors
         if (error) {
+          console.error("[Coinbase Callback] OAuth error:", error);
           throw new Error(`OAuth error: ${error}`);
         }
 
         // Verify state
         const savedState = sessionStorage.getItem("coinbase_oauth_state");
+        console.log("[Coinbase Callback] State verification:", {
+          receivedState: state,
+          savedState,
+          match: state === savedState,
+          sessionStorageKeys: Object.keys(sessionStorage)
+        });
+
         if (!state || !savedState || state !== savedState) {
+          console.error("[Coinbase Callback] State mismatch:", {
+            receivedState: state,
+            savedState,
+            match: state === savedState
+          });
           throw new Error("Invalid state parameter");
         }
 
         // Remove state from storage
         sessionStorage.removeItem("coinbase_oauth_state");
+        console.log("[Coinbase Callback] Removed state from storage");
 
         // Exchange code for tokens through our API route
+        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
+        console.log("[Coinbase Callback] Exchanging code for tokens:", {
+          hasCode: !!code,
+          redirectUri
+        });
+
         const response = await fetch("/api/coinbase/token", {
           method: "POST",
           headers: { 
@@ -41,26 +68,38 @@ export default function CoinbaseOAuthCallback() {
           },
           body: JSON.stringify({ 
             code,
-            redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1")
+            redirect_uri: redirectUri
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
+          console.error("[Coinbase Callback] Token exchange failed:", {
+            status: response.status,
+            error: errorData.error,
+            errorDescription: errorData.error_description
+          });
           throw new Error(errorData.error_description || errorData.error || "Failed to exchange code for tokens");
         }
 
         const data = await response.json();
+        console.log("[Coinbase Callback] Token exchange successful:", {
+          hasAccessToken: !!data.access_token,
+          hasRefreshToken: !!data.refresh_token,
+          expiresIn: data.expires_in
+        });
         
         // Store tokens in session storage
         sessionStorage.setItem("coinbase_access_token", data.access_token);
         if (data.refresh_token) {
           sessionStorage.setItem("coinbase_refresh_token", data.refresh_token);
         }
+        console.log("[Coinbase Callback] Tokens stored in session storage");
 
         setStatus("success");
         setTimeout(() => router.push("/accounts"), 2000);
       } catch (err) {
+        console.error("[Coinbase Callback] Error:", err);
         setError(err instanceof Error ? err.message : "An error occurred");
         setStatus("error");
         setTimeout(() => router.push("/accounts"), 3000);
