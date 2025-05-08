@@ -25,15 +25,21 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       // Send properties to the client
-      session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.expiresAt = token.expiresAt;
+      if (token) {
+        session.accessToken = token.accessToken;
+        session.refreshToken = token.refreshToken;
+        session.expiresAt = token.expiresAt;
+      }
       return session;
     },
   },
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',
+  },
+  debug: process.env.NODE_ENV === 'development',
+  session: {
+    strategy: "jwt",
   },
 });
 
