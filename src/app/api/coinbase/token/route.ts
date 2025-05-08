@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { logDebugInfo } from '@/lib/coinbase';
 
 /**
- * NOTE: This is a mock implementation for demonstration purposes only.
+ * Coinbase OAuth2 token exchange endpoint.
  * 
- * In a real-world application, the client_secret should NEVER be exposed to the frontend.
- * The token exchange should happen on your backend server.
+ * This route handler exchanges the authorization code for an access token
+ * by making a request to Coinbase's token endpoint.
  * 
- * This route handler simulates what a backend implementation would do.
+ * The client_secret is kept secure on the server side.
  */
 export async function POST(request: Request) {
   try {

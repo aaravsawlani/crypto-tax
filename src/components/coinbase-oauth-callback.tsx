@@ -59,34 +59,35 @@ export function CoinbaseOAuthCallback({ onSuccess, onError }: CoinbaseOAuthCallb
 
         logDebugInfo("State verification successful");
 
-        // In a real implementation, you would send this code to your backend
-        // Your backend would exchange it for an access token without exposing client_secret to the frontend
-        // For demo purposes, we'll simulate a successful token exchange
+        // Make API call to exchange code for token
+        const response = await fetch('/api/coinbase/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          const message = error.error || 'Failed to exchange code for token';
+          logDebugInfo("Token exchange error", message);
+          setStatus("error");
+          setErrorMessage(message);
+          onError(message);
+          return;
+        }
+
+        const tokenData = await response.json();
         
-        // Here we would normally make an API call to our backend:
-        // const response = await fetch('/api/coinbase/token', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ code })
-        // });
-        // const data = await response.json();
-
-        // Simulate successful token exchange
-        const mockTokenData = {
-          access_token: "mock_access_token_" + Math.random().toString(36).substring(2),
-          token_type: "bearer",
-          expires_in: 7200,
-          refresh_token: "mock_refresh_token_" + Math.random().toString(36).substring(2),
-          scope: "wallet:user:read wallet:accounts:read"
-        };
-
         // Save the token data
-        saveTokenData(mockTokenData);
-        logDebugInfo("Token exchange successful", { scope: mockTokenData.scope });
+        saveTokenData(tokenData);
+        logDebugInfo("Token exchange successful", { 
+          access_token: tokenData.access_token.substring(0, 10) + "...",
+          scope: tokenData.scope 
+        });
 
         // Set success status and call onSuccess callback
         setStatus("success");
-        onSuccess(mockTokenData);
+        onSuccess(tokenData);
       } catch (error) {
         const message = error instanceof Error ? error.message : "An unexpected error occurred";
         logDebugInfo("Error processing callback", message);
