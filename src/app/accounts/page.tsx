@@ -285,7 +285,21 @@ export default function AccountsPage() {
 
   // Add this helper function after formatAddress function
   const getAccountColor = (provider: string): string => {
-    const colors = {
+    type ColorMap = {
+      MetaMask: string;
+      Phantom: string;
+      Ledger: string;
+      Coinbase: string;
+      Binance: string;
+      Kraken: string;
+      KuCoin: string;
+      Gemini: string;
+      CSV: string;
+      Default: string;
+      [key: string]: string; // Add index signature
+    };
+    
+    const colors: ColorMap = {
       MetaMask: "#E2761B", // MetaMask orange
       Phantom: "#9945FF", // Phantom purple
       Ledger: "#000000", // Ledger black

@@ -86,7 +86,7 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
 
   // Add state for Coinbase OAuth configuration
   const [coinbaseOAuthConfig, setCoinbaseOAuthConfig] = useState({
-    clientId: "YOUR_CLIENT_ID", // Replace with your actual client ID
+    clientId: "25ce06ee-32b6-4fe1-9f32-41d5f8bdfc42", // Replace with your actual client ID
     redirectUri: typeof window !== 'undefined' ? 
       `${window.location.origin}/auth/coinbase/callback` : '',
     scopes: ["wallet:accounts:read", "wallet:transactions:read", "offline_access"]
