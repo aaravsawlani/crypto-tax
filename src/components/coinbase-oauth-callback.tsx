@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
-export default function CoinbaseOAuthCallback() {
+interface CoinbaseOAuthCallbackProps {
+  onSuccess?: (data: any) => void;
+  onError?: (error: string) => void;
+}
+
+export default function CoinbaseOAuthCallback({ onSuccess, onError }: CoinbaseOAuthCallbackProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -97,19 +102,30 @@ export default function CoinbaseOAuthCallback() {
         setStatus("success");
         toast.success("Successfully connected to Coinbase");
         
-        // Redirect back to accounts page after a short delay
-        setTimeout(() => {
-          router.push("/accounts");
-        }, 2000);
+        // Call onSuccess callback if provided
+        if (onSuccess) {
+          onSuccess(data);
+        } else {
+          // Default behavior if no callback provided
+          setTimeout(() => {
+            router.push("/accounts");
+          }, 2000);
+        }
       } catch (error) {
         console.error("[Coinbase OAuth] Error in callback:", error);
-        setError(error instanceof Error ? error.message : "Failed to connect to Coinbase");
+        const errorMessage = error instanceof Error ? error.message : "Failed to connect to Coinbase";
+        setError(errorMessage);
         setStatus("error");
+        
+        // Call onError callback if provided
+        if (onError) {
+          onError(errorMessage);
+        }
       }
     };
 
     handleCallback();
-  }, [searchParams, router]);
+  }, [searchParams, router, onSuccess, onError]);
 
   return (
     <div className="container max-w-lg py-8">

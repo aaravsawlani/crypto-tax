@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, Suspense } from "react";
-import { CoinbaseOAuthCallback } from "@/components/coinbase-oauth-callback";
+import CoinbaseOAuthCallback from "@/components/coinbase-oauth-callback";
 import { logDebugInfo } from "@/lib/coinbase";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
