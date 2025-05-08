@@ -4,6 +4,7 @@ import { Outfit, Azeret_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner"; // Added Toaster import
+import { SessionProvider } from "next-auth/react";
 
 const outfit = Outfit({ 
   subsets: ["latin"], 
@@ -36,15 +37,17 @@ export default function RootLayout({
           azeretMono.variable
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={true} // Updated to support both light and dark modes
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster theme="system" position="top-right" /> {/* Updated Toaster component */}
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={true} // Updated to support both light and dark modes
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster theme="system" position="top-right" /> {/* Updated Toaster component */}
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   );
