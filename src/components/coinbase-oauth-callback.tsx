@@ -17,14 +17,28 @@ export function CoinbaseOAuthCallback() {
     const handleCallback = async () => {
       try {
         const code = searchParams.get("code");
+        const state = searchParams.get("state");
         const error = searchParams.get("error");
         const errorDescription = searchParams.get("error_description");
+
+        // Verify state parameter
+        const savedState = sessionStorage.getItem('coinbase_oauth_state');
+        if (state !== savedState) {
+          console.error("[Coinbase OAuth] State mismatch:", { received: state, saved: savedState });
+          setError("Invalid state parameter");
+          setStatus("error");
+          return;
+        }
+
+        // Clear the state from sessionStorage
+        sessionStorage.removeItem('coinbase_oauth_state');
 
         // Ensure the redirect URI doesn't have double slashes
         const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
 
         console.log("[Coinbase OAuth] Callback received:", {
           hasCode: !!code,
+          hasState: !!state,
           hasError: !!error,
           errorDescription,
           redirectUri
@@ -50,7 +64,7 @@ export function CoinbaseOAuthCallback() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, redirect_uri: redirectUri }),
         });
 
         const data = await response.json();
@@ -65,6 +79,12 @@ export function CoinbaseOAuthCallback() {
 
         if (!response.ok) {
           throw new Error(data.error_description || "Failed to exchange code for token");
+        }
+
+        // Store the tokens securely
+        sessionStorage.setItem('coinbase_access_token', data.access_token);
+        if (data.refresh_token) {
+          sessionStorage.setItem('coinbase_refresh_token', data.refresh_token);
         }
 
         console.log("[Coinbase OAuth] Successfully connected to Coinbase");

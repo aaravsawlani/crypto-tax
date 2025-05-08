@@ -9,37 +9,48 @@ import { logDebugInfo } from '@/lib/coinbase';
  * 
  * The client_secret is kept secure on the server side.
  */
+
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
+  scope: string;
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { code } = body;
-
-    // Ensure the redirect URI doesn't have double slashes
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
+    const { code, redirect_uri } = await request.json();
 
     console.log("[Coinbase OAuth] Token exchange request received:", {
-      code: code ? "present" : "missing",
-      redirectUri,
-      clientId: process.env.COINBASE_CLIENT_ID ? "present" : "missing",
-      clientSecret: process.env.COINBASE_CLIENT_SECRET ? "present" : "missing"
+      hasCode: !!code,
+      hasRedirectUri: !!redirect_uri,
+      redirect_uri
     });
 
     if (!code) {
-      console.error("[Coinbase OAuth] No authorization code provided");
+      console.error("[Coinbase OAuth] No code provided");
       return NextResponse.json(
         { error: "No authorization code provided" },
         { status: 400 }
       );
     }
 
-    const tokenEndpoint = "https://login.coinbase.com/oauth2/token";
-    const params = new URLSearchParams({
-      grant_type: "authorization_code",
-      code,
-      client_id: process.env.COINBASE_CLIENT_ID!,
-      client_secret: process.env.COINBASE_CLIENT_SECRET!,
-      redirect_uri: redirectUri,
-    });
+    if (!redirect_uri) {
+      console.error("[Coinbase OAuth] No redirect URI provided");
+      return NextResponse.json(
+        { error: "No redirect URI provided" },
+        { status: 400 }
+      );
+    }
+
+    const tokenEndpoint = "https://api.coinbase.com/oauth/token";
+    const params = new URLSearchParams();
+    params.append("grant_type", "authorization_code");
+    params.append("code", code);
+    params.append("redirect_uri", redirect_uri);
+    params.append("client_id", process.env.COINBASE_CLIENT_ID!);
+    params.append("client_secret", process.env.COINBASE_CLIENT_SECRET!);
 
     console.log("[Coinbase OAuth] Making token request to Coinbase:", {
       endpoint: tokenEndpoint,
@@ -48,7 +59,7 @@ export async function POST(request: Request) {
         code: "present",
         client_id: "present",
         client_secret: "present",
-        redirect_uri: redirectUri
+        redirect_uri
       }
     });
 
@@ -73,16 +84,31 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      console.error("[Coinbase OAuth] Token exchange failed:", data);
+      console.error("[Coinbase OAuth] Token exchange failed:", {
+        error: data.error,
+        error_description: data.error_description
+      });
       return NextResponse.json(
-        { error: data.error_description || "Failed to exchange token" },
+        { 
+          error: data.error,
+          error_description: data.error_description
+        },
         { status: response.status }
       );
     }
 
-    return NextResponse.json(data);
+    // Return the token response in the same format as the Go example
+    const tokenResponse: TokenResponse = {
+      access_token: data.access_token,
+      token_type: data.token_type,
+      expires_in: data.expires_in,
+      refresh_token: data.refresh_token,
+      scope: data.scope
+    };
+
+    return NextResponse.json(tokenResponse);
   } catch (error) {
-    console.error("[Coinbase OAuth] Token exchange error:", error);
+    console.error("[Coinbase OAuth] Error in token exchange:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
