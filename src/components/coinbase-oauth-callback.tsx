@@ -1,184 +1,109 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
-interface CoinbaseOAuthCallbackProps {
-  onSuccess?: (data: any) => void;
-  onError?: (error: string) => void;
-}
-
-export default function CoinbaseOAuthCallback({ onSuccess, onError }: CoinbaseOAuthCallbackProps) {
+export default function CoinbaseOAuthCallback() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the authorization code and state from the URL
-        const code = searchParams.get("code");
-        const state = searchParams.get("state");
-        const error = searchParams.get("error");
-        const errorDescription = searchParams.get("error_description");
-
-        // Log all URL parameters for debugging
-        console.log("[Coinbase OAuth] All URL parameters:", {
-          code: code ? "present" : "missing",
-          state: state || "missing",
-          error: error || "none",
-          errorDescription: errorDescription || "none",
-          fullUrl: window.location.href
-        });
+        // Get the authorization code and state from URL
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        const state = params.get("state");
+        const error = params.get("error");
 
         // Check for OAuth errors
         if (error) {
-          console.error("[Coinbase OAuth] OAuth error:", { error, errorDescription });
-          throw new Error(errorDescription || error);
+          throw new Error(`OAuth error: ${error}`);
         }
 
-        // Verify state parameter
-        const savedState = sessionStorage.getItem('coinbase_oauth_state');
-        console.log("[Coinbase OAuth] State verification details:", {
-          receivedState: state || "missing",
-          savedState: savedState || "missing",
-          match: state === savedState,
-          sessionStorageKeys: Object.keys(sessionStorage),
-          fullSessionStorage: Object.fromEntries(
-            Object.keys(sessionStorage).map(key => [key, sessionStorage.getItem(key)])
-          )
-        });
-
-        if (!state) {
-          console.error("[Coinbase OAuth] No state parameter received in URL");
-          throw new Error("No state parameter received");
-        }
-
-        if (!savedState) {
-          console.error("[Coinbase OAuth] No saved state found in sessionStorage");
-          throw new Error("No saved state found");
-        }
-
-        if (state !== savedState) {
-          console.error("[Coinbase OAuth] State mismatch:", {
-            receivedState: state,
-            savedState,
-            match: state === savedState
-          });
+        // Verify state
+        const savedState = sessionStorage.getItem("coinbase_oauth_state");
+        if (!state || !savedState || state !== savedState) {
           throw new Error("Invalid state parameter");
         }
 
-        // Remove the state from sessionStorage after verification
-        sessionStorage.removeItem('coinbase_oauth_state');
-        console.log("[Coinbase OAuth] Removed state from sessionStorage");
+        // Remove state from storage
+        sessionStorage.removeItem("coinbase_oauth_state");
 
-        if (!code) {
-          console.error("[Coinbase OAuth] No authorization code received");
-          throw new Error("No authorization code received");
-        }
-
-        // Construct the redirect URI
-        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
-        console.log("[Coinbase OAuth] Using redirect URI:", redirectUri);
-
-        // Exchange the code for tokens
+        // Exchange code for tokens through our API route
         const response = await fetch("/api/coinbase/token", {
           method: "POST",
-          headers: {
+          headers: { 
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ code, redirect_uri: redirectUri }),
-        });
-
-        console.log("[Coinbase OAuth] Token exchange response status:", response.status);
-        const data = await response.json();
-        console.log("[Coinbase OAuth] Token exchange response:", {
-          success: response.ok,
-          error: data.error,
-          error_description: data.error_description,
-          hasAccessToken: !!data.access_token,
-          hasRefreshToken: !!data.refresh_token
+          body: JSON.stringify({ 
+            code,
+            redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1")
+          }),
         });
 
         if (!response.ok) {
-          throw new Error(data.error_description || data.error || "Failed to exchange code for token");
+          const errorData = await response.json();
+          throw new Error(errorData.error_description || errorData.error || "Failed to exchange code for tokens");
         }
 
-        // Store the tokens
+        const data = await response.json();
+        
+        // Store tokens in session storage
         sessionStorage.setItem("coinbase_access_token", data.access_token);
-        sessionStorage.setItem("coinbase_refresh_token", data.refresh_token);
-        console.log("[Coinbase OAuth] Tokens stored in sessionStorage");
+        if (data.refresh_token) {
+          sessionStorage.setItem("coinbase_refresh_token", data.refresh_token);
+        }
 
         setStatus("success");
-        toast.success("Successfully connected to Coinbase");
-        
-        // Call onSuccess callback if provided
-        if (onSuccess) {
-          onSuccess(data);
-        } else {
-          // Default behavior if no callback provided
-          setTimeout(() => {
-            router.push("/accounts");
-          }, 2000);
-        }
-      } catch (error) {
-        console.error("[Coinbase OAuth] Error in callback:", error);
-        const errorMessage = error instanceof Error ? error.message : "Failed to connect to Coinbase";
-        setError(errorMessage);
+        setTimeout(() => router.push("/accounts"), 2000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
         setStatus("error");
-        
-        // Call onError callback if provided
-        if (onError) {
-          onError(errorMessage);
-        }
+        setTimeout(() => router.push("/accounts"), 3000);
       }
     };
 
     handleCallback();
-  }, [searchParams, router, onSuccess, onError]);
+  }, [router]);
 
-  return (
-    <div className="container max-w-lg py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Connecting to Coinbase</CardTitle>
-          <CardDescription>
-            {status === "loading" && "Please wait while we complete the connection..."}
-            {status === "success" && "Successfully connected to Coinbase!"}
-            {status === "error" && "Failed to connect to Coinbase"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
-          {status === "loading" && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span>Processing...</span>
-            </div>
-          )}
-          {status === "success" && (
-            <div className="flex items-center gap-2 text-emerald-600">
-              <CheckCircle2 className="h-6 w-6" />
-              <span>Connection successful!</span>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center gap-2 text-rose-600">
-                <AlertCircle className="h-6 w-6" />
-                <span>{error}</span>
-              </div>
-              <Button onClick={() => router.push("/accounts")}>
-                Return to Accounts
-              </Button>
-            </div>
-          )}
+  if (status === "loading") {
+    return (
+      <Card className="w-full max-w-md mx-auto mt-8">
+        <CardContent className="flex flex-col items-center justify-center p-6">
+          <Loader2 className="h-8 w-8 animate-spin mb-4" />
+          <p>Connecting to Coinbase...</p>
         </CardContent>
       </Card>
-    </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <Card className="w-full max-w-md mx-auto mt-8">
+        <CardHeader>
+          <CardTitle className="text-red-500">Connection Failed</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-500">{error}</p>
+          <p className="mt-4">Redirecting to accounts page...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="w-full max-w-md mx-auto mt-8">
+      <CardHeader>
+        <CardTitle className="text-green-500">Connected Successfully</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p>Successfully connected to Coinbase!</p>
+        <p className="mt-4">Redirecting to accounts page...</p>
+      </CardContent>
+    </Card>
   );
 } 
