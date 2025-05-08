@@ -58,12 +58,20 @@ export async function exchangeCodeForTokens(code: string): Promise<CoinbaseToken
       throw new Error("Missing OAuth configuration");
     }
     
-    const response = await axios.post('https://login.coinbase.com/oauth2/token', {
-      grant_type: 'authorization_code',
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri
+    console.log("[Coinbase API] Using redirect URI:", redirectUri);
+    
+    // Use URLSearchParams to properly encode the form data
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    params.append('redirect_uri', redirectUri);
+    
+    const response = await axios.post('https://login.coinbase.com/oauth2/token', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     });
     
     // Calculate expiration timestamp for easier validation later
@@ -76,6 +84,14 @@ export async function exchangeCodeForTokens(code: string): Promise<CoinbaseToken
     return tokens;
   } catch (error) {
     console.error("[Coinbase API] Error exchanging code for tokens:", error);
+    // Log more detailed error information if available
+    if (axios.isAxiosError(error) && error.response) {
+      console.error("[Coinbase API] Error response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+    }
     throw error;
   }
 }
@@ -94,11 +110,17 @@ export async function refreshAccessToken(refreshToken: string): Promise<Coinbase
       throw new Error("Missing OAuth configuration");
     }
     
-    const response = await axios.post('https://login.coinbase.com/oauth2/token', {
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: clientId,
-      client_secret: clientSecret
+    // Use URLSearchParams to properly encode the form data
+    const params = new URLSearchParams();
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', refreshToken);
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    
+    const response = await axios.post('https://login.coinbase.com/oauth2/token', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     });
     
     // Calculate expiration timestamp
@@ -111,6 +133,14 @@ export async function refreshAccessToken(refreshToken: string): Promise<Coinbase
     return tokens;
   } catch (error) {
     console.error("[Coinbase API] Error refreshing access token:", error);
+    // Log more detailed error information if available
+    if (axios.isAxiosError(error) && error.response) {
+      console.error("[Coinbase API] Error response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+    }
     throw error;
   }
 }
