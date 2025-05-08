@@ -55,16 +55,16 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 
-// Mock tax report data
+// Empty data instead of mock data
 const taxYears = ["2023", "2022", "2021", "2020"];
 
 const mockReportData = {
-  shortTermGains: "$1,234.56",
-  longTermGains: "$5,678.90",
-  totalIncome: "$6,913.46",
-  taxableEvents: 42,
-  incomeEvents: 15,
-  taxLiability: "$1,728.37",
+  shortTermGains: "$0.00",
+  longTermGains: "$0.00",
+  totalIncome: "$0.00",
+  taxableEvents: 0,
+  incomeEvents: 0,
+  taxLiability: "$0.00",
 };
 
 const taxForms = [
@@ -213,69 +213,16 @@ export default function TaxReportsPage() {
   // More debug info
   console.log("Tax Reports component rendering content with year:", selectedYear);
 
-  // Sample data for capital gains chart
-  const capitalGainsData = [
-    {
-      name: "Jan",
-      shortTerm: 4000,
-      longTerm: 2400,
-    },
-    {
-      name: "Feb",
-      shortTerm: 3000,
-      longTerm: 1398,
-    },
-    {
-      name: "Mar",
-      shortTerm: 2000,
-      longTerm: 9800,
-    },
-    {
-      name: "Apr",
-      shortTerm: 2780,
-      longTerm: 3908,
-    },
-    {
-      name: "May",
-      shortTerm: 1890,
-      longTerm: 4800,
-    },
-    {
-      name: "Jun",
-      shortTerm: 2390,
-      longTerm: 3800,
-    },
-    {
-      name: "Jul",
-      shortTerm: 3490,
-      longTerm: 4300,
-    },
-    {
-      name: "Aug",
-      shortTerm: 3490,
-      longTerm: -2300,
-    },
-    {
-      name: "Sep",
-      shortTerm: -1490,
-      longTerm: 4300,
-    },
-    {
-      name: "Oct",
-      shortTerm: 3490,
-      longTerm: 4300,
-    },
-    {
-      name: "Nov",
-      shortTerm: 2490,
-      longTerm: 3300,
-    },
-    {
-      name: "Dec",
-      shortTerm: 5490,
-      longTerm: 6300,
-    },
-  ];
+  // Sample data for capital gains chart with empty values
+  const capitalGainsData = [];
+
+  // Empty placeholder for calculations that were previously used
+  const totalCapitalGains = 0;
+  const totalIncome = 0;
+  const capitalGainsTotals = {
+    shortTerm: 0,
+    longTerm: 0
+  };
 
   // Sample data for income chart
   const incomeData = [
@@ -459,59 +406,83 @@ export default function TaxReportsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Gains</CardTitle>
-              <BarChart className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">
+                Short-Term Gains
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ${totalCapitalGains.toLocaleString()}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                +20.1% from previous year
-              </div>
+              <div className="text-2xl font-bold">{mockReportData.shortTermGains}</div>
+              <p className="text-xs text-muted-foreground">
+                No short-term gain data
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-              <BarChart className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">
+                Long-Term Gains
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ${totalIncome.toLocaleString()}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                +10.5% from previous year
-              </div>
+              <div className="text-2xl font-bold">{mockReportData.longTermGains}</div>
+              <p className="text-xs text-muted-foreground">
+                No long-term gain data
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tax Liability</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">
+                Total Crypto Income
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ${Math.round((totalCapitalGains + totalIncome) * 0.25).toLocaleString()}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                25% estimated tax rate
-              </div>
+              <div className="text-2xl font-bold">{mockReportData.totalIncome}</div>
+              <p className="text-xs text-muted-foreground">
+                No income data available
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taxable Events</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">
+                Taxable Events
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">245</div>
-              <div className="text-xs text-muted-foreground">
-                Across 12 exchanges
-              </div>
+              <div className="text-2xl font-bold">{mockReportData.taxableEvents}</div>
+              <p className="text-xs text-muted-foreground">
+                No taxable events
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Income Events
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{mockReportData.incomeEvents}</div>
+              <p className="text-xs text-muted-foreground">
+                No income events
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Est. Tax Liability
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{mockReportData.taxLiability}</div>
+              <p className="text-xs text-muted-foreground">
+                No liability data
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -723,10 +694,10 @@ export default function TaxReportsPage() {
         {/* Capital Gains Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Capital Gains</CardTitle>
+            <CardTitle>Capital Gains</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-80 w-full">
+          <CardContent className="h-[400px]">
+            {capitalGainsData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsBarChart
                   data={capitalGainsData}
@@ -734,15 +705,26 @@ export default function TaxReportsPage() {
                     top: 20,
                     right: 30,
                     left: 20,
-                    bottom: 5,
+                    bottom: 20,
                   }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.6} />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value) => [`$${value.toLocaleString()}`, undefined]}
-                    labelFormatter={(label) => `Month: ${label}`}
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeOpacity={0.6}
+                  />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => `$${value.toLocaleString()}`}
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`$${value.toLocaleString()}`, '']}
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       borderColor: 'hsl(var(--border))',
@@ -750,94 +732,26 @@ export default function TaxReportsPage() {
                       borderRadius: 'var(--radius)',
                       boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
                     }}
-                    labelStyle={{
-                      color: 'hsl(var(--card-foreground))',
-                      fontWeight: 500
-                    }}
                     itemStyle={{
                       color: 'hsl(var(--card-foreground))'
                     }}
                   />
                   <Legend />
-                  <Bar 
-                    dataKey="shortTerm" 
-                    name="Short Term" 
-                    fill="#3b82f6" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="longTerm" 
-                    name="Long Term" 
-                    fill="#f97316" 
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar dataKey="shortTerm" fill="hsl(var(--primary))" name="Short Term" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="longTerm" fill="hsl(var(--primary)/0.6)" name="Long Term" radius={[4, 4, 0, 0]} />
                 </RechartsBarChart>
               </ResponsiveContainer>
-            </div>
-
-            <div className="mt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="text-right">Percentage</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">Short Term Gains</TableCell>
-                    <TableCell className={cn(
-                      "text-right font-medium",
-                      capitalGainsTotals.shortTerm >= 0 
-                        ? "text-emerald-600 dark:text-emerald-400" 
-                        : "text-rose-600 dark:text-rose-400"
-                    )}>
-                      ${capitalGainsTotals.shortTerm.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {Math.round((capitalGainsTotals.shortTerm / totalCapitalGains) * 100)}%
-                      <Progress 
-                        value={Math.abs((capitalGainsTotals.shortTerm / totalCapitalGains) * 100)} 
-                        className="h-2 w-full mt-1"
-                        style={{"--tw-progress-fill-bg": "rgb(59 130 246)", "--tw-progress-fill-bg-opacity": "1"}}
-                      />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Long Term Gains</TableCell>
-                    <TableCell className={cn(
-                      "text-right font-medium",
-                      capitalGainsTotals.longTerm >= 0 
-                        ? "text-emerald-600 dark:text-emerald-400" 
-                        : "text-rose-600 dark:text-rose-400"
-                    )}>
-                      ${capitalGainsTotals.longTerm.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {Math.round((capitalGainsTotals.longTerm / totalCapitalGains) * 100)}%
-                      <Progress 
-                        value={Math.abs((capitalGainsTotals.longTerm / totalCapitalGains) * 100)} 
-                        className="h-2 w-full mt-1"
-                        style={{"--tw-progress-fill-bg": "rgb(249 115 22)", "--tw-progress-fill-bg-opacity": "1"}}
-                      />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow className="border-t-2">
-                    <TableCell className="font-bold">Total</TableCell>
-                    <TableCell className={cn(
-                      "text-right font-bold",
-                      totalCapitalGains >= 0 
-                        ? "text-emerald-600 dark:text-emerald-400" 
-                        : "text-rose-600 dark:text-rose-400"
-                    )}>
-                      ${totalCapitalGains.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">100%</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <BarChart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2">No capital gains data</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Connect accounts or add transactions to see your capital gains breakdown.
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
