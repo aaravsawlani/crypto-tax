@@ -8,6 +8,7 @@ export async function POST(request: Request) {
 
     console.log("[Coinbase Store State] Request received:", {
       hasState: !!state,
+      stateValue: state,
       timestamp: new Date().toISOString()
     });
 
@@ -26,10 +27,26 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 10 // 10 minutes
+      maxAge: 60 * 10, // 10 minutes
+      domain: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname : undefined
     });
 
-    console.log("[Coinbase Store State] State stored successfully");
+    // Verify the cookie was set
+    const savedState = cookieStore.get('coinbase_oauth_state');
+    console.log("[Coinbase Store State] State stored:", {
+      stateValue: state,
+      savedState: savedState?.value,
+      cookieSet: !!savedState,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!savedState) {
+      console.error("[Coinbase Store State] Failed to store state in cookie");
+      return NextResponse.json(
+        { error: "Failed to store state" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

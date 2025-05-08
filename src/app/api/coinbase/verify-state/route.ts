@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     console.log("[Coinbase Verify State] Request received:", {
       hasState: !!state,
       hasCode: !!code,
+      stateValue: state,
       timestamp: new Date().toISOString()
     });
 
@@ -21,8 +22,15 @@ export async function POST(request: Request) {
     }
 
     // Get the saved state from cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const savedState = cookieStore.get('coinbase_oauth_state')?.value;
+
+    // Log all cookies for debugging
+    const allCookies = cookieStore.getAll();
+    console.log("[Coinbase Verify State] All cookies:", {
+      cookies: allCookies.map((c: { name: string; value: string }) => ({ name: c.name, value: c.value })),
+      timestamp: new Date().toISOString()
+    });
 
     console.log("[Coinbase Verify State] State verification:", {
       receivedState: state,
@@ -35,7 +43,8 @@ export async function POST(request: Request) {
       console.error("[Coinbase Verify State] State mismatch:", {
         receivedState: state,
         savedState,
-        match: state === savedState
+        match: state === savedState,
+        cookieExists: !!savedState
       });
       return NextResponse.json(
         { error: "Invalid state parameter" },
@@ -44,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     // Clear the state cookie after successful verification
-    cookieStore.delete('coinbase_oauth_state');
+    await cookieStore.delete('coinbase_oauth_state');
 
     console.log("[Coinbase Verify State] State verified successfully");
 
