@@ -20,9 +20,14 @@ export function CoinbaseConnectButton() {
       
       // Generate a secure random state
       const state = generateState();
+      console.log("[Coinbase OAuth] Generated state:", state);
       
       // Store state in sessionStorage for verification
       sessionStorage.setItem('coinbase_oauth_state', state);
+      console.log("[Coinbase OAuth] Stored state in sessionStorage:", {
+        key: 'coinbase_oauth_state',
+        value: state
+      });
 
       // Construct the authorization URL
       const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
@@ -38,7 +43,8 @@ export function CoinbaseConnectButton() {
       console.log("[Coinbase OAuth] Initiating OAuth flow:", {
         authUrl: authUrl.toString(),
         redirectUri,
-        state
+        state,
+        clientId: process.env.NEXT_PUBLIC_COINBASE_CLIENT_ID ? "present" : "missing"
       });
 
       // Redirect to Coinbase
