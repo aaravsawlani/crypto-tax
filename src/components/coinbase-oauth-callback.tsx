@@ -3,126 +3,122 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { verifyStateParam, saveTokenData, logDebugInfo } from "@/lib/coinbase";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
-interface CoinbaseOAuthCallbackProps {
-  onSuccess: (data: any) => void;
-  onError: (error: string) => void;
-}
-
-export function CoinbaseOAuthCallback({ onSuccess, onError }: CoinbaseOAuthCallbackProps) {
+export function CoinbaseOAuthCallback() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function handleCallback() {
+    const handleCallback = async () => {
       try {
-        // Get the code and state from the URL
         const code = searchParams.get("code");
-        const state = searchParams.get("state");
         const error = searchParams.get("error");
+        const errorDescription = searchParams.get("error_description");
 
-        logDebugInfo("OAuth callback called", { code, state, error });
+        console.log("[Coinbase OAuth] Callback received:", {
+          hasCode: !!code,
+          hasError: !!error,
+          errorDescription,
+          redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`
+        });
 
-        // If there's an error in the URL, handle it
         if (error) {
-          const errorDescription = searchParams.get("error_description") || "Unknown error";
-          logDebugInfo("OAuth error", errorDescription);
+          console.error("[Coinbase OAuth] Error in callback:", { error, errorDescription });
+          setError(errorDescription || "Failed to connect to Coinbase");
           setStatus("error");
-          setErrorMessage(errorDescription);
-          onError(errorDescription);
           return;
         }
 
-        // Check if code and state exist
-        if (!code || !state) {
-          const message = "Missing authorization code or state parameter";
-          logDebugInfo(message);
+        if (!code) {
+          console.error("[Coinbase OAuth] No code in callback");
+          setError("No authorization code received");
           setStatus("error");
-          setErrorMessage(message);
-          onError(message);
           return;
         }
 
-        // Verify state parameter to prevent CSRF attacks
-        if (!verifyStateParam(state)) {
-          const message = "Invalid state parameter";
-          logDebugInfo(message);
-          setStatus("error");
-          setErrorMessage(message);
-          onError(message);
-          return;
-        }
+        console.log("[Coinbase OAuth] Exchanging code for token...");
+        const response = await fetch("/api/coinbase/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ code }),
+        });
 
-        logDebugInfo("State verification successful");
+        const data = await response.json();
 
-        // Make API call to exchange code for token
-        const response = await fetch('/api/coinbase/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
+        console.log("[Coinbase OAuth] Token exchange response:", {
+          status: response.status,
+          success: response.ok,
+          hasAccessToken: !!data.access_token,
+          error: data.error,
+          errorDescription: data.error_description
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          const message = error.error || 'Failed to exchange code for token';
-          logDebugInfo("Token exchange error", message);
-          setStatus("error");
-          setErrorMessage(message);
-          onError(message);
-          return;
+          throw new Error(data.error_description || "Failed to exchange code for token");
         }
 
-        const tokenData = await response.json();
-        
-        // Save the token data
-        saveTokenData(tokenData);
-        logDebugInfo("Token exchange successful", { 
-          access_token: tokenData.access_token.substring(0, 10) + "...",
-          scope: tokenData.scope 
-        });
-
-        // Set success status and call onSuccess callback
+        console.log("[Coinbase OAuth] Successfully connected to Coinbase");
         setStatus("success");
-        onSuccess(tokenData);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "An unexpected error occurred";
-        logDebugInfo("Error processing callback", message);
+        toast.success("Successfully connected to Coinbase");
+        
+        // Redirect to accounts page after a short delay
+        setTimeout(() => {
+          router.push("/accounts");
+        }, 2000);
+      } catch (err) {
+        console.error("[Coinbase OAuth] Error in callback handler:", err);
+        setError(err instanceof Error ? err.message : "An unexpected error occurred");
         setStatus("error");
-        setErrorMessage(message);
-        onError(message);
+        toast.error("Failed to connect to Coinbase");
       }
-    }
+    };
 
     handleCallback();
-  }, [searchParams, onSuccess, onError]);
-
-  if (status === "loading") {
-    return (
-      <div className="flex flex-col items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p>Processing Coinbase authorization...</p>
-        <p className="text-sm text-muted-foreground mt-2">Please wait while we complete the connection</p>
-      </div>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-destructive">
-        <p>Error connecting to Coinbase</p>
-        <p className="text-sm mt-2">{errorMessage}</p>
-      </div>
-    );
-  }
+  }, [searchParams, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-green-600">
-      <p>Successfully connected to Coinbase!</p>
-      <p className="text-sm text-muted-foreground mt-2">You can now close this window</p>
-    </div>
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle>Connecting to Coinbase</CardTitle>
+        <CardDescription>
+          {status === "loading" && "Please wait while we connect to your Coinbase account..."}
+          {status === "success" && "Successfully connected to Coinbase!"}
+          {status === "error" && "Failed to connect to Coinbase"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center gap-4">
+        {status === "loading" && (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">This may take a few moments...</p>
+          </>
+        )}
+        {status === "success" && (
+          <>
+            <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+            <p className="text-sm text-muted-foreground">Redirecting to accounts page...</p>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <XCircle className="h-8 w-8 text-rose-500" />
+            <p className="text-sm text-rose-500">{error}</p>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/accounts")}
+            >
+              Return to Accounts
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 } 

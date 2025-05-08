@@ -11,43 +11,78 @@ import { logDebugInfo } from '@/lib/coinbase';
  */
 export async function POST(request: Request) {
   try {
-    const { code } = await request.json();
-    logDebugInfo("Received code for token exchange", { code });
+    const body = await request.json();
+    const { code } = body;
+
+    console.log("[Coinbase OAuth] Token exchange request received:", {
+      code: code ? "present" : "missing",
+      redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`,
+      clientId: process.env.COINBASE_CLIENT_ID ? "present" : "missing",
+      clientSecret: process.env.COINBASE_CLIENT_SECRET ? "present" : "missing"
+    });
 
     if (!code) {
-      return NextResponse.json({ error: 'No code provided' }, { status: 400 });
+      console.error("[Coinbase OAuth] No authorization code provided");
+      return NextResponse.json(
+        { error: "No authorization code provided" },
+        { status: 400 }
+      );
     }
 
-    // Make request to Coinbase token endpoint
-    const response = await fetch('https://login.coinbase.com/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        client_id: process.env.COINBASE_CLIENT_ID!,
-        client_secret: process.env.COINBASE_CLIENT_SECRET!,
+    const tokenEndpoint = "https://login.coinbase.com/oauth2/token";
+    const params = new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: process.env.COINBASE_CLIENT_ID!,
+      client_secret: process.env.COINBASE_CLIENT_SECRET!,
+      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`,
+    });
+
+    console.log("[Coinbase OAuth] Making token request to Coinbase:", {
+      endpoint: tokenEndpoint,
+      params: {
+        grant_type: "authorization_code",
+        code: "present",
+        client_id: "present",
+        client_secret: "present",
         redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`
-      })
+      }
+    });
+
+    const response = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+
+    console.log("[Coinbase OAuth] Token response status:", response.status);
+    console.log("[Coinbase OAuth] Token response data:", {
+      success: response.ok,
+      error: data.error,
+      error_description: data.error_description,
+      hasAccessToken: !!data.access_token,
+      hasRefreshToken: !!data.refresh_token,
+      expiresIn: data.expires_in
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      logDebugInfo("Error from Coinbase token endpoint", error);
-      return NextResponse.json({ error: error.error_description || 'Failed to exchange code for token' }, { status: response.status });
+      console.error("[Coinbase OAuth] Token exchange failed:", data);
+      return NextResponse.json(
+        { error: data.error_description || "Failed to exchange token" },
+        { status: response.status }
+      );
     }
 
-    const tokenData = await response.json();
-    logDebugInfo("Successfully exchanged code for token", { 
-      access_token: tokenData.access_token.substring(0, 10) + "...",
-      scope: tokenData.scope
-    });
-
-    return NextResponse.json(tokenData);
+    return NextResponse.json(data);
   } catch (error) {
-    logDebugInfo("Error in token exchange", error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("[Coinbase OAuth] Token exchange error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 } 
