@@ -11,48 +11,43 @@ import { logDebugInfo } from '@/lib/coinbase';
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { code } = body;
-    
-    // Log the received code (for debugging)
-    logDebugInfo("Received authorization code for exchange", { code: code?.substring(0, 10) + "..." });
+    const { code } = await request.json();
+    logDebugInfo("Received code for token exchange", { code });
 
     if (!code) {
-      return NextResponse.json({ error: 'Authorization code is required' }, { status: 400 });
+      return NextResponse.json({ error: 'No code provided' }, { status: 400 });
     }
 
-    // Mock Coinbase API call - in a real implementation, you would call the Coinbase token endpoint
-    // const tokenResponse = await fetch('https://login.coinbase.com/oauth2/token', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     grant_type: 'authorization_code',
-    //     code,
-    //     client_id: process.env.COINBASE_CLIENT_ID,
-    //     client_secret: process.env.COINBASE_CLIENT_SECRET,
-    //     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`
-    //   })
-    // });
-    
-    // const tokenData = await tokenResponse.json();
-    
-    // For demo purposes, return mock token data
-    const mockTokenData = {
-      access_token: "mock_access_token_" + Math.random().toString(36).substring(2),
-      token_type: "bearer",
-      expires_in: 7200,
-      refresh_token: "mock_refresh_token_" + Math.random().toString(36).substring(2),
-      scope: "wallet:user:read wallet:accounts:read wallet:transactions:read"
-    };
-    
-    logDebugInfo("Successfully exchanged code for token", { scope: mockTokenData.scope });
-    
-    return NextResponse.json(mockTokenData);
+    // Make request to Coinbase token endpoint
+    const response = await fetch('https://login.coinbase.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: process.env.COINBASE_CLIENT_ID!,
+        client_secret: process.env.COINBASE_CLIENT_SECRET!,
+        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      logDebugInfo("Error from Coinbase token endpoint", error);
+      return NextResponse.json({ error: error.error_description || 'Failed to exchange code for token' }, { status: response.status });
+    }
+
+    const tokenData = await response.json();
+    logDebugInfo("Successfully exchanged code for token", { 
+      access_token: tokenData.access_token.substring(0, 10) + "...",
+      scope: tokenData.scope
+    });
+
+    return NextResponse.json(tokenData);
   } catch (error) {
-    console.error('Error exchanging code for token:', error);
-    return NextResponse.json(
-      { error: 'Failed to exchange authorization code for token' },
-      { status: 500 }
-    );
+    logDebugInfo("Error in token exchange", error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 
