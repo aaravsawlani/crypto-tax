@@ -23,7 +23,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WalletConnectDialog } from "@/components/wallet-connect-dialog";
 import type { ConnectionResult } from "@/types/wallet"; // Import the ConnectionResult type
 import { toast } from "sonner";
-import { getTokenData, isTokenExpired, clearTokenData, logDebugInfo } from "@/lib/coinbase";
 
 // Define types
 interface BaseAccount {
@@ -136,92 +135,32 @@ export default function AccountsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>(allAccounts);
   const [accounts, setAccounts] = useState<Account[]>(allAccounts);
-  // Add state for Coinbase connection
-  const [coinbaseConnected, setCoinbaseConnected] = useState(false);
-  const [coinbaseData, setCoinbaseData] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
-    
-    // Check if there's an active Coinbase connection
-    if (typeof window !== "undefined") {
-      const tokenData = getTokenData();
-      if (tokenData && !isTokenExpired()) {
-        setCoinbaseConnected(true);
-        setCoinbaseData(tokenData);
-        logDebugInfo("Found active Coinbase connection", {
-          access_token: tokenData.access_token.substring(0, 10) + "...", 
-          scope: tokenData.scope
-        });
-        
-        // Check if we already have a Coinbase account in our list
-        const hasCoinbaseAccount = accounts.some(
-          account => account.type === "exchange" && account.provider === "Coinbase" && account.name === "Coinbase (OAuth)"
-        );
-        
-        // If we have a token but no account yet, add it to the list
-        if (!hasCoinbaseAccount) {
-          addCoinbaseAccount(tokenData);
-        }
-      } else if (tokenData) {
-        // If token is expired, clear it
-        logDebugInfo("Coinbase token expired, clearing");
-        clearTokenData();
-      }
-    }
   }, []);
 
-  // Add function to add a Coinbase account with OAuth data
-  const addCoinbaseAccount = (tokenData: any) => {
-    const newId = accounts.length + 1;
-    
-    // Create a new Coinbase account using OAuth data
-    const newExchange: ExchangeAccount = {
-      id: newId,
-      name: "Coinbase (OAuth)",
-      type: "exchange",
-      balance: "$0.00", // In a real app, you would fetch this from the Coinbase API
-      lastUpdated: new Date().toISOString(),
-      provider: "Coinbase",
-      logo: "/images/tokens/coinbase.png",
-      transactions: 0,
-    };
-    
-    // Add the new account to the list
-    setAccounts(prevAccounts => [...prevAccounts, newExchange]);
-    toast.success("Coinbase account connected via OAuth");
-    logDebugInfo("Added Coinbase account with OAuth", { accountId: newId });
+  useEffect(() => {
+    if (filter === "all") {
+      setFilteredAccounts(accounts);
+    } else if (filter === "wallets") {
+      setFilteredAccounts(accounts.filter(acc => acc.type === "wallet"));
+    } else if (filter === "exchanges") {
+      setFilteredAccounts(accounts.filter(acc => acc.type === "exchange"));
+    }
+  }, [filter, accounts]);
+
+  // Calculate total accounts and transactions
+  const getTotalAccounts = () => {
+    return accounts.length;
   };
 
-  // Modify the handleAccountConnect function to handle Coinbase OAuth connections
-  const handleAccountConnect = (provider: string, data: ConnectionResult) => {
-    // Check if this is a callback from Coinbase OAuth flow
-    if (provider === "coinbase" && data.success) {
-      logDebugInfo("Received connection from Coinbase OAuth", data);
-      
-      // Check if we already have Coinbase connection data in local storage
-      const tokenData = getTokenData();
-      if (tokenData && !isTokenExpired()) {
-        setCoinbaseConnected(true);
-        setCoinbaseData(tokenData);
-        
-        // Check if we already have a Coinbase account in our list
-        const hasCoinbaseAccount = accounts.some(
-          account => account.type === "exchange" && account.provider === "Coinbase" && account.name === "Coinbase (OAuth)"
-        );
-        
-        // If we don't have an account yet, add it
-        if (!hasCoinbaseAccount) {
-          addCoinbaseAccount(tokenData);
-          return;
-        } else {
-          toast.info("Coinbase account already connected");
-          return;
-        }
-      }
-    }
-    
-    // Original implementation for other providers
+  const getTotalTransactions = () => {
+    return accounts.reduce((total, account) => total + (account.transactions || 0), 0);
+  };
+
+  const handleAccountConnect = (provider: string, data: ConnectionResult) => { // Update to use ConnectionResult
+    // Generate a mock account based on the provider
     const newId = accounts.length + 1;
     let newAccount: Account;
 
@@ -285,21 +224,7 @@ export default function AccountsPage() {
 
   // Add this helper function after formatAddress function
   const getAccountColor = (provider: string): string => {
-    type ColorMap = {
-      MetaMask: string;
-      Phantom: string;
-      Ledger: string;
-      Coinbase: string;
-      Binance: string;
-      Kraken: string;
-      KuCoin: string;
-      Gemini: string;
-      CSV: string;
-      Default: string;
-      [key: string]: string; // Add index signature
-    };
-    
-    const colors: ColorMap = {
+    const colors = {
       MetaMask: "#E2761B", // MetaMask orange
       Phantom: "#9945FF", // Phantom purple
       Ledger: "#000000", // Ledger black
@@ -330,67 +255,6 @@ export default function AccountsPage() {
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Add debug section in the UI to show Coinbase connection status
-  const renderDebugInfo = () => {
-    if (!coinbaseConnected) return null;
-    
-    return (
-      <Card className="mb-4 border-green-400">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-green-600">
-            Coinbase OAuth Connection Active
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-xs space-y-1">
-            <p><strong>Access Token:</strong> {coinbaseData?.access_token.substring(0, 10)}...{coinbaseData?.access_token.substring(coinbaseData?.access_token.length - 5)}</p>
-            <p><strong>Scope:</strong> {coinbaseData?.scope}</p>
-            <p><strong>Expires In:</strong> {coinbaseData?.expires_in} seconds</p>
-            <p><strong>Status:</strong> {isTokenExpired() ? "Expired" : "Valid"}</p>
-          </div>
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            className="mt-2"
-            onClick={() => {
-              clearTokenData();
-              setCoinbaseConnected(false);
-              setCoinbaseData(null);
-              
-              // Remove Coinbase OAuth account
-              setAccounts(prevAccounts => 
-                prevAccounts.filter(acc => !(acc.type === "exchange" && acc.provider === "Coinbase" && acc.name === "Coinbase (OAuth)"))
-              );
-              
-              toast.success("Coinbase connection removed");
-            }}
-          >
-            Disconnect
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  useEffect(() => {
-    if (filter === "all") {
-      setFilteredAccounts(accounts);
-    } else if (filter === "wallets") {
-      setFilteredAccounts(accounts.filter(acc => acc.type === "wallet"));
-    } else if (filter === "exchanges") {
-      setFilteredAccounts(accounts.filter(acc => acc.type === "exchange"));
-    }
-  }, [filter, accounts]);
-
-  // Calculate total accounts and transactions
-  const getTotalAccounts = () => {
-    return accounts.length;
-  };
-
-  const getTotalTransactions = () => {
-    return accounts.reduce((total, account) => total + (account.transactions || 0), 0);
-  };
-
   if (!mounted) {
     return null;
   }
@@ -402,9 +266,6 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-bold">Connected Accounts</h1>
           <WalletConnectDialog onConnect={handleAccountConnect} />
         </div>
-        
-        {/* Render debug info if Coinbase connected */}
-        {renderDebugInfo()}
         
         {/* Account Summary Section */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

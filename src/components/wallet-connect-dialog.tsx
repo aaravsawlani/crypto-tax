@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { QrCode, Loader2 } from "lucide-react";
 import type { ConnectionResult, WalletProvider, ExchangeProvider } from "@/types/wallet";
-import { generateStateParam, storeStateParam, logDebugInfo } from "@/lib/coinbase";
 
 const walletProviders: WalletProvider[] = [
   {
@@ -84,14 +83,6 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
 
-  // Add state for Coinbase OAuth configuration
-  const [coinbaseOAuthConfig, setCoinbaseOAuthConfig] = useState({
-    clientId: "25ce06ee-32b6-4fe1-9f32-41d5f8bdfc42", // Replace with your actual client ID
-    redirectUri: typeof window !== 'undefined' ? 
-      `${window.location.origin}/auth/coinbase/callback` : '',
-    scopes: ["wallet:accounts:read", "wallet:transactions:read", "offline_access"]
-  });
-
   const handleConnect = (provider: string) => {
     setSelectedProvider(provider);
     setConnecting(true);
@@ -109,38 +100,6 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
         });
       }
     }, 2000);
-  };
-
-  // Add Coinbase OAuth connect function
-  const handleCoinbaseOAuthConnect = () => {
-    try {
-      setConnecting(true);
-      
-      // Generate and store state parameter for security
-      const state = generateStateParam();
-      storeStateParam(state);
-      
-      // Construct the authorization URL
-      const authUrl = new URL("https://login.coinbase.com/oauth2/auth");
-      authUrl.searchParams.append("response_type", "code");
-      authUrl.searchParams.append("client_id", coinbaseOAuthConfig.clientId);
-      authUrl.searchParams.append("redirect_uri", coinbaseOAuthConfig.redirectUri);
-      authUrl.searchParams.append("state", state);
-      authUrl.searchParams.append("scope", coinbaseOAuthConfig.scopes.join(" "));
-      
-      // Log for debugging
-      logDebugInfo("Initiating Coinbase OAuth flow", {
-        authUrl: authUrl.toString(),
-        redirectUri: coinbaseOAuthConfig.redirectUri,
-        state
-      });
-      
-      // Redirect to Coinbase for authorization
-      window.location.href = authUrl.toString();
-    } catch (error) {
-      setConnecting(false);
-      console.error("Error initiating Coinbase OAuth:", error);
-    }
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,12 +216,6 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
                     onClick={() => {
                       setSelectedProvider(provider.id);
 
-                      // If provider is Coinbase, use OAuth flow
-                      if (provider.id === "coinbase") {
-                        handleCoinbaseOAuthConnect();
-                        return;
-                      }
-
                       // If provider only supports CSV, switch to CSV tab
                       if (provider.connection === "CSV") {
                         const csvTab = document.querySelector('[data-value="csv"]') as HTMLElement;
@@ -277,15 +230,13 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
                     />
                     <div className="text-center">
                       <p className="font-medium">{provider.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {provider.id === "coinbase" ? "Via OAuth" : `Via ${provider.connection}`}
-                      </p>
+                      <p className="text-xs text-muted-foreground">Via {provider.connection}</p>
                     </div>
                   </button>
                 ))}
               </div>
 
-              {selectedProvider && ["binance", "kraken"].includes(selectedProvider) && (
+              {selectedProvider && ["coinbase", "binance", "kraken"].includes(selectedProvider) && (
                 <div className="mt-4 space-y-4 border rounded-lg p-4">
                   <h3 className="text-sm font-medium">API Connection for {selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)}</h3>
                   <div className="space-y-3">
@@ -314,23 +265,6 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
                       disabled={!apiKey || !apiSecret}
                     >
                       Connect
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {selectedProvider === "coinbase" && (
-                <div className="mt-4 space-y-4 border rounded-lg p-4">
-                  <h3 className="text-sm font-medium">Coinbase Connection</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Connect securely with Coinbase using OAuth. This will redirect you to Coinbase to authorize access.
-                  </p>
-                  <div className="space-y-3">
-                    <Button
-                      className="w-full"
-                      onClick={handleCoinbaseOAuthConnect}
-                    >
-                      Connect with Coinbase
                     </Button>
                   </div>
                 </div>

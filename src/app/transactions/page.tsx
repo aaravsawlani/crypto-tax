@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import type { ImportedData, ImportedTransaction } from "@/types/wallet";
+import type { ImportedData, ImportedTransaction } from "@/types/wallet"; // Fixed import
 import {
   Table,
   TableBody,
