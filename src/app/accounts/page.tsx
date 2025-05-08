@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PlusCircle, Wallet, Building, ExternalLink, BarChart2, ArrowRightLeft } from "lucide-react";
+import { PlusCircle, Wallet, Building, ExternalLink, BarChart2, ArrowRightLeft, AlertCircle, CheckCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WalletConnectDialog } from "@/components/wallet-connect-dialog";
 import type { ConnectionResult } from "@/types/wallet"; // Import the ConnectionResult type
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
+import axios from "axios";
 
 // Define types
 interface BaseAccount {
@@ -135,10 +137,74 @@ export default function AccountsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>(allAccounts);
   const [accounts, setAccounts] = useState<Account[]>(allAccounts);
+  const [isLoadingCoinbase, setIsLoadingCoinbase] = useState(false);
+  const [oauthStatus, setOauthStatus] = useState<{ success?: boolean; error?: string } | null>(null);
+  
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // Check for OAuth callback parameters
+    const success = searchParams.get('success');
+    const error = searchParams.get('error');
+    
+    if (success === 'true') {
+      setOauthStatus({ success: true });
+      toast.success('Successfully connected to Coinbase');
+      
+      // Fetch Coinbase accounts
+      fetchCoinbaseAccounts();
+    } else if (error) {
+      setOauthStatus({ error });
+      toast.error(`Failed to connect: ${error}`);
+    }
+  }, [searchParams]);
+
+  // Fetch Coinbase accounts from our API
+  const fetchCoinbaseAccounts = async () => {
+    try {
+      setIsLoadingCoinbase(true);
+      console.log("[Accounts] Fetching Coinbase accounts");
+      
+      const response = await axios.get('/api/coinbase/accounts');
+      
+      // Process the accounts
+      if (response.data.accounts && response.data.accounts.length > 0) {
+        console.log("[Accounts] Received Coinbase accounts:", response.data.accounts.length);
+        
+        // Convert Coinbase accounts to our application's account format
+        const coinbaseAccounts = response.data.accounts.map((account: any, index: number) => {
+          const newId = accounts.length + index + 1;
+          
+          const newAccount: ExchangeAccount = {
+            id: newId,
+            name: `Coinbase ${account.name}`,
+            type: "exchange",
+            balance: account.balance?.formatted || "$0.00",
+            lastUpdated: new Date().toISOString(),
+            provider: "Coinbase",
+            logo: "/images/tokens/coinbase.png",
+            transactions: 0
+          };
+          
+          return newAccount;
+        });
+        
+        // Add the accounts to our state
+        setAccounts(prevAccounts => [...prevAccounts, ...coinbaseAccounts]);
+        toast.success(`Added ${coinbaseAccounts.length} Coinbase accounts`);
+      } else {
+        console.log("[Accounts] No Coinbase accounts found");
+        toast.info("No Coinbase accounts found");
+      }
+    } catch (error) {
+      console.error("[Accounts] Error fetching Coinbase accounts:", error);
+      toast.error("Failed to fetch Coinbase accounts");
+    } finally {
+      setIsLoadingCoinbase(false);
+    }
+  };
 
   useEffect(() => {
     if (filter === "all") {
@@ -159,7 +225,7 @@ export default function AccountsPage() {
     return accounts.reduce((total, account) => total + (account.transactions || 0), 0);
   };
 
-  const handleAccountConnect = (provider: string, data: ConnectionResult) => { // Update to use ConnectionResult
+  const handleAccountConnect = (provider: string, data: ConnectionResult) => { 
     // Generate a mock account based on the provider
     const newId = accounts.length + 1;
     let newAccount: Account;
@@ -178,8 +244,8 @@ export default function AccountsPage() {
       };
       newAccount = newExchange;
       toast.success(`CSV file imported successfully: ${data.fileName}`);
-    } else if (["coinbase", "binance", "kraken", "kucoin", "gemini"].includes(provider)) {
-      // For exchanges
+    } else if (["binance", "kraken", "kucoin", "gemini"].includes(provider)) {
+      // For exchanges (excluding Coinbase which uses OAuth)
       const exchangeInfo = supportedExchanges.find(e => e.id === provider);
       const newExchange: ExchangeAccount = {
         id: newId,
@@ -224,7 +290,7 @@ export default function AccountsPage() {
 
   // Add this helper function after formatAddress function
   const getAccountColor = (provider: string): string => {
-    const colors = {
+    const colors: {[key: string]: string} = {
       MetaMask: "#E2761B", // MetaMask orange
       Phantom: "#9945FF", // Phantom purple
       Ledger: "#000000", // Ledger black
@@ -251,7 +317,7 @@ export default function AccountsPage() {
         .toUpperCase();
     }
     
-    // Single word name - use first two letters
+    // For single word names, use first 2 letters
     return name.slice(0, 2).toUpperCase();
   };
 
@@ -261,118 +327,175 @@ export default function AccountsPage() {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold">Connected Accounts</h1>
-          <WalletConnectDialog onConnect={handleAccountConnect} />
+      <div className="container py-6 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Your Accounts</h1>
+            <p className="text-muted-foreground">Manage your crypto wallets and exchanges</p>
+          </div>
+          <div className="flex gap-2">
+            <Tabs value={filter} className="w-[400px]">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="all" onClick={() => setFilter("all")}>
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="wallets" onClick={() => setFilter("wallets")}>
+                  Wallets
+                </TabsTrigger>
+                <TabsTrigger value="exchanges" onClick={() => setFilter("exchanges")}>
+                  Exchanges
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
+
+        {/* OAuth Status Messages */}
+        {oauthStatus?.success && (
+          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <p>Successfully connected to Coinbase! Your accounts have been imported.</p>
+          </div>
+        )}
         
-        {/* Account Summary Section */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Connected Accounts
-              </CardTitle>
-              <div className="h-8 w-8 rounded-full bg-primary/10 p-1.5">
-                <Wallet className="h-full w-full text-primary" />
-              </div>
+        {oauthStatus?.error && (
+          <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            <p>Failed to connect to Coinbase: {oauthStatus.error}</p>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => window.location.href = '/api/auth/coinbase'}>
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className="col-span-3 md:col-span-1">
+            <CardHeader>
+              <CardTitle>Account Summary</CardTitle>
+              <CardDescription>Overview of your connected accounts</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getTotalAccounts()}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <span>{filteredAccounts.filter(a => a.type === "wallet").length} wallets and {filteredAccounts.filter(a => a.type === "exchange").length} exchanges</span>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-muted-foreground">Total Accounts</div>
+                  <div></div>
+                </div>
+                <div className="text-2xl font-bold">{getTotalAccounts()}</div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-muted-foreground">Total Transactions</div>
+                  <div></div>
+                </div>
+                <div className="text-2xl font-bold">{getTotalTransactions()}</div>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-3">Account Types</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Wallets</span>
+                    </div>
+                    <span className="text-sm font-medium">
+                      {accounts.filter(acc => acc.type === "wallet").length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Exchanges</span>
+                    </div>
+                    <span className="text-sm font-medium">
+                      {accounts.filter(acc => acc.type === "exchange").length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-3">Actions</h4>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full flex items-center gap-2 justify-start" onClick={() => setIsAddDialogOpen(true)}>
+                    <PlusCircle className="h-4 w-4" />
+                    <span>Add Account</span>
+                  </Button>
+                  {isLoadingCoinbase && (
+                    <div className="text-center text-sm text-muted-foreground flex items-center gap-2 justify-center mt-4">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Loading Coinbase accounts...
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Transactions
-              </CardTitle>
-              <div className="h-8 w-8 rounded-full bg-primary/10 p-1.5">
-                <ArrowRightLeft className="h-full w-full text-primary" />
-              </div>
+
+          <Card className="col-span-3 md:col-span-2">
+            <CardHeader>
+              <CardTitle>Connected Accounts</CardTitle>
+              <CardDescription>Manage your connected accounts</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getTotalTransactions()}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <span>Across all connected accounts</span>
-              </div>
+            <CardContent className="space-y-6">
+              {filteredAccounts.map((account) => (
+                <div key={account.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-white font-bold text-sm"
+                      style={{ backgroundColor: getAccountColor(account.provider) }}
+                    >
+                      {getAccountAbbreviation(account.provider)}
+                    </div>
+                    {account.type === "wallet" ? (
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <span className="mr-2">{account.name}</span>
+                    {account.type === "wallet" && (
+                      <span>{formatAddress((account as WalletAccount).address)}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      <span className="mr-2">
+                        {account.transactions} transaction{account.transactions !== 1 ? 's' : ''}
+                      </span>
+                      |
+                      <span className="ml-2">
+                        Last Updated: {new Date(account.lastUpdated).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <button className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                      <span>Details</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="all" className="w-full" onValueChange={setFilter}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All Accounts</TabsTrigger>
-            <TabsTrigger value="wallets">Wallets</TabsTrigger>
-            <TabsTrigger value="exchanges">Exchanges</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAccounts.map((account) => (
-            <Card key={account.id}>
-              <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                <div>
-                  <CardTitle className="text-base">{account.name}</CardTitle>
-                  {account.type === "wallet" && (
-                    <CardDescription>
-                      {formatAddress((account as WalletAccount).address)}
-                    </CardDescription>
-                  )}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div 
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-white font-bold text-sm"
-                    style={{ backgroundColor: getAccountColor(account.provider) }}
-                  >
-                    {getAccountAbbreviation(account.provider)}
-                  </div>
-                  {account.type === "wallet" ? (
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Building className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 space-y-2">
-                  <div className="text-sm text-muted-foreground">Balance</div>
-                  <div className="text-2xl font-bold">{account.balance}</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    <span className="mr-2">
-                      {account.transactions} transaction{account.transactions !== 1 ? 's' : ''}
-                    </span>
-                    |
-                    <span className="ml-2">
-                      Last Updated: {new Date(account.lastUpdated).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <button className="flex items-center gap-1 text-xs text-primary hover:text-primary/80">
-                    <span>Details</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          <Card className="flex h-full flex-col items-center justify-center border-dashed p-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <PlusCircle className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="mt-4 text-lg font-medium">Add Account</h3>
-            <p className="mb-4 mt-1 text-center text-sm text-muted-foreground">
-              Connect a wallet or exchange to track your crypto tax information.
-            </p>
-            <WalletConnectDialog onConnect={handleAccountConnect} />
           </Card>
         </div>
       </div>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Account</DialogTitle>
+            <DialogDescription>
+              Connect a wallet, exchange, or import transactions
+            </DialogDescription>
+          </DialogHeader>
+          <WalletConnectDialog onConnect={(provider, data) => {
+            handleAccountConnect(provider, data);
+            setIsAddDialogOpen(false);
+          }} />
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

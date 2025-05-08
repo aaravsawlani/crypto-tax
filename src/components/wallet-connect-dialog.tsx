@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { QrCode, Loader2 } from "lucide-react";
 import type { ConnectionResult, WalletProvider, ExchangeProvider } from "@/types/wallet";
+import { toast } from "sonner";
 
 const walletProviders: WalletProvider[] = [
   {
@@ -49,7 +50,7 @@ const exchangeProviders: ExchangeProvider[] = [
     id: "coinbase",
     name: "Coinbase",
     icon: "/images/tokens/coinbase.png",
-    connection: "API",
+    connection: "OAuth",
   },
   {
     id: "binance",
@@ -82,6 +83,7 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const handleConnect = (provider: string) => {
     setSelectedProvider(provider);
@@ -100,6 +102,31 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
         });
       }
     }, 2000);
+  };
+
+  const handleOAuthConnect = async (provider: string) => {
+    setSelectedProvider(provider);
+    setConnecting(true);
+    setConnectionError(null);
+    
+    try {
+      console.log(`[Wallet Connect] Initiating OAuth flow for ${provider}`);
+      
+      // For Coinbase, redirect to our OAuth endpoint
+      if (provider === "coinbase") {
+        // Start the OAuth flow by redirecting to our API route
+        window.location.href = "/api/auth/coinbase";
+        return; // No need to reset connecting state as we're redirecting
+      }
+      
+      // For other OAuth providers (future implementation)
+      throw new Error(`OAuth not implemented for ${provider}`);
+    } catch (error) {
+      console.error(`[Wallet Connect] Error initiating OAuth for ${provider}:`, error);
+      setConnecting(false);
+      setConnectionError(`Failed to connect to ${provider}. Please try again.`);
+      toast.error(`Failed to connect to ${provider}`);
+    }
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,6 +174,12 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
         });
       }
     }, 2000);
+  };
+
+  // Helper to determine connection method based on provider ID
+  const getConnectionMethod = (providerId: string) => {
+    const provider = exchangeProviders.find(p => p.id === providerId);
+    return provider?.connection || "API";
   };
 
   return (
@@ -220,6 +253,13 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
                       if (provider.connection === "CSV") {
                         const csvTab = document.querySelector('[data-value="csv"]') as HTMLElement;
                         csvTab?.click();
+                        return;
+                      }
+                      
+                      // If OAuth, use the OAuth flow
+                      if (provider.connection === "OAuth") {
+                        handleOAuthConnect(provider.id);
+                        return;
                       }
                     }}
                   >
@@ -236,7 +276,13 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
                 ))}
               </div>
 
-              {selectedProvider && ["coinbase", "binance", "kraken"].includes(selectedProvider) && (
+              {connectionError && (
+                <div className="mt-2 text-sm text-red-500 text-center">
+                  {connectionError}
+                </div>
+              )}
+
+              {selectedProvider && ["binance", "kraken"].includes(selectedProvider) && (
                 <div className="mt-4 space-y-4 border rounded-lg p-4">
                   <h3 className="text-sm font-medium">API Connection for {selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)}</h3>
                   <div className="space-y-3">
@@ -284,24 +330,22 @@ export function WalletConnectDialog({ onConnect }: WalletConnectDialogProps) {
                   id="csv-file"
                   type="file"
                   accept=".csv"
-                  className="mx-auto max-w-xs"
                   onChange={handleCsvUpload}
+                  className="mx-auto max-w-sm cursor-pointer"
                 />
                 {csvFile && (
-                  <div className="mt-4 text-sm">
-                    Selected file: <span className="font-medium">{csvFile.name}</span>
+                  <div className="mt-4">
+                    <p className="text-sm font-medium">Selected file:</p>
+                    <p className="text-sm text-muted-foreground">{csvFile.name}</p>
+                    <Button
+                      className="mt-2"
+                      onClick={handleCsvSubmit}
+                    >
+                      Upload and Import
+                    </Button>
                   </div>
                 )}
               </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  onClick={handleCsvSubmit}
-                  disabled={!csvFile}
-                >
-                  Upload and Process
-                </Button>
-              </DialogFooter>
             </TabsContent>
           </Tabs>
         )}
