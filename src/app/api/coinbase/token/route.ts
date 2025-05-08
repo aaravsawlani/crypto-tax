@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { logDebugInfo } from '@/lib/coinbase';
 
 /**
  * Coinbase OAuth2 token exchange endpoint.
@@ -23,14 +22,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { code, redirect_uri } = body;
 
-    console.log("[Coinbase Token] Received token exchange request:", {
+    // Log the incoming request
+    console.log("[Coinbase Token] Request received:", {
       hasCode: !!code,
       redirectUri: redirect_uri,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      headers: Object.fromEntries(request.headers.entries())
     });
 
     if (!code) {
-      console.error("[Coinbase Token] No code provided in request");
+      console.error("[Coinbase Token] Missing authorization code");
       return NextResponse.json(
         { error: "No authorization code provided" },
         { status: 400 }
@@ -51,7 +52,12 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("[Coinbase Token] Exchanging code for tokens...");
+    // Log the token exchange attempt
+    console.log("[Coinbase Token] Attempting token exchange:", {
+      redirectUri,
+      clientId: clientId.substring(0, 5) + '...', // Log partial client ID for debugging
+      timestamp: new Date().toISOString()
+    });
 
     const response = await fetch("https://api.coinbase.com/oauth/token", {
       method: "POST",
@@ -73,7 +79,8 @@ export async function POST(request: Request) {
       console.error("[Coinbase Token] Token exchange failed:", {
         status: response.status,
         error: data.error,
-        errorDescription: data.error_description
+        errorDescription: data.error_description,
+        timestamp: new Date().toISOString()
       });
       return NextResponse.json(
         { 
@@ -84,15 +91,21 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("[Coinbase Token] Successfully exchanged code for tokens:", {
+    // Log successful token exchange
+    console.log("[Coinbase Token] Token exchange successful:", {
       hasAccessToken: !!data.access_token,
       hasRefreshToken: !!data.refresh_token,
-      expiresIn: data.expires_in
+      expiresIn: data.expires_in,
+      timestamp: new Date().toISOString()
     });
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[Coinbase Token] Unexpected error:", error);
+    console.error("[Coinbase Token] Unexpected error:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
