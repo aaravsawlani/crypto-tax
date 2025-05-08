@@ -14,9 +14,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { code } = body;
 
+    // Ensure the redirect URI doesn't have double slashes
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
+
     console.log("[Coinbase OAuth] Token exchange request received:", {
       code: code ? "present" : "missing",
-      redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`,
+      redirectUri,
       clientId: process.env.COINBASE_CLIENT_ID ? "present" : "missing",
       clientSecret: process.env.COINBASE_CLIENT_SECRET ? "present" : "missing"
     });
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
       code,
       client_id: process.env.COINBASE_CLIENT_ID!,
       client_secret: process.env.COINBASE_CLIENT_SECRET!,
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`,
+      redirect_uri: redirectUri,
     });
 
     console.log("[Coinbase OAuth] Making token request to Coinbase:", {
@@ -45,7 +48,7 @@ export async function POST(request: Request) {
         code: "present",
         client_id: "present",
         client_secret: "present",
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`
+        redirect_uri: redirectUri
       }
     });
 

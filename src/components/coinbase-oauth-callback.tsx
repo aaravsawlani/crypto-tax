@@ -20,11 +20,14 @@ export function CoinbaseOAuthCallback() {
         const error = searchParams.get("error");
         const errorDescription = searchParams.get("error_description");
 
+        // Ensure the redirect URI doesn't have double slashes
+        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`.replace(/([^:]\/)\/+/g, "$1");
+
         console.log("[Coinbase OAuth] Callback received:", {
           hasCode: !!code,
           hasError: !!error,
           errorDescription,
-          redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/coinbase/callback`
+          redirectUri
         });
 
         if (error) {
