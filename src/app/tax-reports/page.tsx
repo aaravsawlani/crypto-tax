@@ -33,6 +33,7 @@ import {
   HelpCircle,
   Settings,
   Download,
+  Wallet,
 } from "lucide-react";
 import {
   Table,
@@ -892,6 +893,24 @@ export default function TaxReportsPage() {
                   </TableRow>
                 </TableBody>
               </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Income Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Income</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[400px]">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No income data</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Connect accounts or add transactions to see your income breakdown.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
