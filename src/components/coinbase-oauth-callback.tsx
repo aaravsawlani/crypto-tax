@@ -27,12 +27,13 @@ export default function CoinbaseOAuthCallback({ onSuccess, onError }: CoinbaseOA
         const error = searchParams.get("error");
         const errorDescription = searchParams.get("error_description");
 
-        console.log("[Coinbase OAuth] Callback received:", {
-          hasCode: !!code,
-          hasState: !!state,
-          hasError: !!error,
-          errorDescription,
-          state
+        // Log all URL parameters for debugging
+        console.log("[Coinbase OAuth] All URL parameters:", {
+          code: code ? "present" : "missing",
+          state: state || "missing",
+          error: error || "none",
+          errorDescription: errorDescription || "none",
+          fullUrl: window.location.href
         });
 
         // Check for OAuth errors
@@ -43,13 +44,27 @@ export default function CoinbaseOAuthCallback({ onSuccess, onError }: CoinbaseOA
 
         // Verify state parameter
         const savedState = sessionStorage.getItem('coinbase_oauth_state');
-        console.log("[Coinbase OAuth] State verification:", {
-          receivedState: state,
-          savedState,
-          match: state === savedState
+        console.log("[Coinbase OAuth] State verification details:", {
+          receivedState: state || "missing",
+          savedState: savedState || "missing",
+          match: state === savedState,
+          sessionStorageKeys: Object.keys(sessionStorage),
+          fullSessionStorage: Object.fromEntries(
+            Object.keys(sessionStorage).map(key => [key, sessionStorage.getItem(key)])
+          )
         });
 
-        if (!state || !savedState || state !== savedState) {
+        if (!state) {
+          console.error("[Coinbase OAuth] No state parameter received in URL");
+          throw new Error("No state parameter received");
+        }
+
+        if (!savedState) {
+          console.error("[Coinbase OAuth] No saved state found in sessionStorage");
+          throw new Error("No saved state found");
+        }
+
+        if (state !== savedState) {
           console.error("[Coinbase OAuth] State mismatch:", {
             receivedState: state,
             savedState,
