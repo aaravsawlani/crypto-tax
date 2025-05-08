@@ -20,35 +20,45 @@ export async function POST(request: Request) {
       );
     }
 
-    // Store state in a cookie
-    const cookieStore = cookies();
-    cookieStore.set('coinbase_oauth_state', state, {
+    // Create response with cookie
+    const response = NextResponse.json({ success: true });
+    
+    // Get domain from NEXT_PUBLIC_APP_URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, ''); // Remove trailing slash
+    const domain = appUrl ? new URL(appUrl).hostname : undefined;
+    
+    console.log("[Coinbase Store State] Cookie domain:", {
+      appUrl,
+      domain,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Set cookie in response
+    response.cookies.set('coinbase_oauth_state', state, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // Always use secure in production
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 10, // 10 minutes
-      domain: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname : undefined
+      domain
     });
 
-    // Verify the cookie was set
-    const savedState = cookieStore.get('coinbase_oauth_state');
-    console.log("[Coinbase Store State] State stored:", {
-      stateValue: state,
-      savedState: savedState?.value,
-      cookieSet: !!savedState,
+    // Log the cookie being set
+    console.log("[Coinbase Store State] Setting cookie:", {
+      name: 'coinbase_oauth_state',
+      value: state,
+      options: {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 10,
+        domain
+      },
       timestamp: new Date().toISOString()
     });
 
-    if (!savedState) {
-      console.error("[Coinbase Store State] Failed to store state in cookie");
-      return NextResponse.json(
-        { error: "Failed to store state" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
+    return response;
   } catch (error) {
     console.error("[Coinbase Store State] Unexpected error:", {
       error: error instanceof Error ? error.message : String(error),

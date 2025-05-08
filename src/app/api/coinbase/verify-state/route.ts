@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+interface Cookie {
+  name: string;
+  value: string;
+  path?: string;
+  domain?: string;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -28,7 +35,12 @@ export async function POST(request: Request) {
     // Log all cookies for debugging
     const allCookies = cookieStore.getAll();
     console.log("[Coinbase Verify State] All cookies:", {
-      cookies: allCookies.map((c: { name: string; value: string }) => ({ name: c.name, value: c.value })),
+      cookies: allCookies.map((c: Cookie) => ({ 
+        name: c.name, 
+        value: c.value,
+        path: c.path,
+        domain: c.domain
+      })),
       timestamp: new Date().toISOString()
     });
 
@@ -44,7 +56,11 @@ export async function POST(request: Request) {
         receivedState: state,
         savedState,
         match: state === savedState,
-        cookieExists: !!savedState
+        cookieExists: !!savedState,
+        cookieDetails: savedState ? {
+          name: 'coinbase_oauth_state',
+          value: savedState
+        } : null
       });
       return NextResponse.json(
         { error: "Invalid state parameter" },
@@ -52,12 +68,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Clear the state cookie after successful verification
-    await cookieStore.delete('coinbase_oauth_state');
+    // Create response and clear the state cookie
+    const response = NextResponse.json({ success: true });
+    response.cookies.delete('coinbase_oauth_state');
 
     console.log("[Coinbase Verify State] State verified successfully");
 
-    return NextResponse.json({ success: true });
+    return response;
   } catch (error) {
     console.error("[Coinbase Verify State] Unexpected error:", {
       error: error instanceof Error ? error.message : String(error),
