@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,22 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { CalendarIcon } from "@/components/icons/calendar-icon";
 
-
+// Create an empty array for allTransactions to fix the reference error
+const allTransactions: any[] = [
+  {
+    id: 1,
+    type: "Buy",
+    asset: "BTC",
+    amount: "0.1 BTC",
+    price: "$30,000",
+    value: "$3,000",
+    date: "2023-01-01T12:00:00Z",
+    status: "Completed",
+    exchange: "Coinbase",
+    identified: true,
+    valueIdentified: true
+  }
+];
 
 interface Transaction {
   id: number;
@@ -119,7 +134,7 @@ interface EditableFields {
 }
 
 // Modify transaction values to have more negative values
-const modifiedTransactions = allTransactions.map((tx, index) => {
+const modifiedTransactions = allTransactions.map((tx: any, index: number) => {
   // Determine value sign based on transaction type
   let value = tx.value;
   let type = tx.type;
@@ -163,7 +178,7 @@ const modifiedTransactions = allTransactions.map((tx, index) => {
 });
 
 // Define transaction type from ImportedData
-export default function TransactionsPage() {
+function TransactionsContent() {
   const [mounted, setMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [transactions, setTransactions] = useState<Transaction[]>(modifiedTransactions);
@@ -1681,5 +1696,33 @@ export default function TransactionsPage() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+// Loading component to show when Suspense is active
+function TransactionsLoading() {
+  return (
+    <Layout>
+      <div className="container py-6 space-y-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-2">
+            <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 className="text-xl font-medium">Loading transactions...</h2>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
+
+// Main exported page component with Suspense boundary
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={<TransactionsLoading />}>
+      <TransactionsContent />
+    </Suspense>
   );
 }
