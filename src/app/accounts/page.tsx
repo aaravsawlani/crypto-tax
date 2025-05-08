@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,7 +131,8 @@ const supportedExchanges = [
   { id: "gemini", name: "Gemini", logo: "/images/tokens/ethereum.png" },
 ];
 
-export default function AccountsPage() {
+// Create a separate component for the accounts page content
+function AccountsContent() {
   const [mounted, setMounted] = useState(false);
   const [filter, setFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -497,5 +498,33 @@ export default function AccountsPage() {
         </DialogContent>
       </Dialog>
     </Layout>
+  );
+}
+
+// Loading component to show when Suspense is active
+function AccountsLoading() {
+  return (
+    <Layout>
+      <div className="container py-6 space-y-8">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-2">
+            <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 className="text-xl font-medium">Loading accounts...</h2>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
+
+// Main exported page component with Suspense boundary
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={<AccountsLoading />}>
+      <AccountsContent />
+    </Suspense>
   );
 }
