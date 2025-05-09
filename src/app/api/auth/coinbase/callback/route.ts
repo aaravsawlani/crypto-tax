@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens, getCoinbaseUser, getCoinbaseAccounts } from "@/lib/coinbase";
+import { PrismaClient } from "@prisma/client";
+
+// Initialize Prisma client
+const prisma = new PrismaClient();
 
 /**
  * Handles the OAuth callback from Coinbase
@@ -43,6 +47,49 @@ export async function GET(request: NextRequest) {
     // Get account data
     const accounts = await getCoinbaseAccounts(tokens.access_token);
     console.log("[Coinbase Callback] Retrieved accounts:", accounts.length);
+    
+    // Find or create the user in our database
+    let user = await prisma.user.findUnique({
+      where: { email: userData.email }
+    });
+    
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: userData.email,
+          name: userData.name || userData.username || 'Coinbase User'
+        }
+      });
+      console.log("[Coinbase Callback] Created new user:", user.id);
+    } else {
+      console.log("[Coinbase Callback] Found existing user:", user.id);
+    }
+    
+    // Store the Coinbase accounts as wallets in our database
+    for (const account of accounts) {
+      // Create or update the wallet in our database
+      await prisma.wallet.upsert({
+        where: {
+          address_provider: {
+            address: account.id,
+            provider: 'coinbase'
+          }
+        },
+        update: {
+          name: account.name,
+          userId: user.id,
+          // You could update additional fields here if needed
+        },
+        create: {
+          name: account.name,
+          address: account.id, // Using Coinbase account ID as the address
+          provider: 'coinbase',
+          userId: user.id,
+        }
+      });
+    }
+    
+    console.log(`[Coinbase Callback] Stored ${accounts.length} wallets for user ${user.id}`);
     
     // Create a secure, short-lived cookie with connection info
     // This is for demonstration - in production, use server-side session storage
@@ -92,5 +139,8 @@ export async function GET(request: NextRequest) {
     
     // Redirect back to accounts page with error
     return NextResponse.redirect(new URL('/accounts?error=token_exchange', request.nextUrl.origin));
+  } finally {
+    // Disconnect from Prisma to avoid connection leaking
+    await prisma.$disconnect();
   }
 } 

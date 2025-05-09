@@ -35,10 +35,17 @@ export interface CoinbaseUser {
   id: string;
   name: string;
   username: string;
-  profile_location: string | null;
-  profile_bio: string | null;
-  profile_url: string;
-  avatar_url: string;
+  profile: {
+    name: string;
+    bio?: string;
+    location?: string;
+    avatar_url?: string;
+    url?: string;
+  };
+  email: string;
+  email_verified: boolean;
+  created_at: string;
+  updated_at: string;
   resource: string;
   resource_path: string;
 }
