@@ -40,6 +40,9 @@ A comprehensive cryptocurrency tax calculator application built with Next.js and
    In the Vercel project settings, add the following environment variables:
    
    - `DATABASE_URL`: Your PostgreSQL connection string
+   - `COINBASE_CLIENT_ID`: Your Coinbase OAuth client ID
+   - `COINBASE_CLIENT_SECRET`: Your Coinbase OAuth client secret
+   - `COINBASE_REDIRECT_URI`: Your application's redirect URI (e.g., `https://your-app.vercel.app/api/auth/coinbase/callback`)
    
    If using Vercel Postgres:
    1. Go to Storage tab in your Vercel dashboard
@@ -48,7 +51,35 @@ A comprehensive cryptocurrency tax calculator application built with Next.js and
 
 4. **Deploy**:
    - Click "Deploy" and Vercel will build and deploy your application
+   - The build process will automatically run `prisma generate` as configured in the package.json
    - On the first deployment, Prisma will automatically create your database schema
+
+### Prisma on Vercel
+
+This project is configured to work correctly with Prisma on Vercel by:
+
+1. Including `prisma generate` in the build command:
+   ```json
+   "scripts": {
+     "build": "prisma generate && next build"
+   }
+   ```
+
+2. Adding a `postinstall` script to ensure Prisma Client is generated after dependencies are installed:
+   ```json
+   "scripts": {
+     "postinstall": "prisma generate"
+   }
+   ```
+
+3. Configuring `vercel.json` with the correct build command:
+   ```json
+   {
+     "buildCommand": "prisma generate && next build"
+   }
+   ```
+
+These configurations prevent the "Prisma has detected that this project was built on Vercel" error which happens because Vercel caches dependencies, causing Prisma's auto-generation not to be triggered.
 
 ### Post-Deployment
 
