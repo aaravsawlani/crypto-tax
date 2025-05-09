@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         wallets: []
       });
     }
-    
+    /*rebuild*/
     // Parse connection data
     let connectionData;
     try {
